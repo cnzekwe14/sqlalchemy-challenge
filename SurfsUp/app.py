@@ -6,9 +6,7 @@ import datetime as dt
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, func,inspect
-
-app = Flask(__name__)
+from sqlalchemy import create_engine, func
 
 # create engine to hawaii.sqlite
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
@@ -23,20 +21,14 @@ Base.classes.keys()
 
 # Save references to each table
 Measurement = Base.classes.measurement
+station = Base.classes.station
 
-# Create our session (link) from Python to the DB
+ # Create our session (link) from Python to the DB
 session = Session(engine)
 
-#date greater than or equal to start date
-start1 = session.query(Measurement.date).\
-filter(Measurement.date >= "2011-09-11").all()
-start1
-startdict=[]
-for number in start1:
-    dates={}
-    dates['Start'] = number
-    startdict.append(dates)
-startdict
+app = Flask(__name__)
+
+
 
 @app.route("/")
 def homepage():
@@ -49,28 +41,11 @@ def homepage():
         f"/api/v1.0/<start><br/>"
         f"/api/v1.0/<start>/<end>"
     )
-
+    
 
 @app.route("/api/v1.0/precipitation")
 def prcp():
-    # create engine to hawaii.sqlite
-    engine = create_engine("sqlite:///Resources/hawaii.sqlite")
-
-    # reflect an existing database into a new model
-    Base = automap_base()
-    # reflect the tables
-    Base.prepare(autoload_with=engine)
-
-    # View all of the classes that automap found
-    Base.classes.keys()
-
-    # Save references to each table
-    Measurement = Base.classes.measurement
-
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
-
-
+   
     # Find the most recent date in the data set.
     most_recent =session.query(func.max(Measurement.date)).first()
 
@@ -108,9 +83,7 @@ def prcp():
 
 @app.route("/api/v1.0/stations")
 def station():  
-
-
-     # create engine to hawaii.sqlite
+    # create engine to hawaii.sqlite
     engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
     # reflect an existing database into a new model
@@ -136,22 +109,6 @@ def station():
 @app.route("/api/v1.0/tobs")
 def tobs():
 
-     # create engine to hawaii.sqlite
-    engine = create_engine("sqlite:///Resources/hawaii.sqlite")
-
-    # reflect an existing database into a new model
-    Base = automap_base()
-    # reflect the tables
-    Base.prepare(autoload_with=engine)
-
-    # View all of the classes that automap found
-    Base.classes.keys()
-
-    # Save references to each table
-    Measurement = Base.classes.measurement
-
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
 
     recent = session.query(func.max(Measurement.date)).group_by(Measurement.station).\
     order_by(Measurement.id.desc()).first()
@@ -180,33 +137,28 @@ def tobs():
     return jsonify(temp)
 
 @app.route("/api/v1.0/<start>")
-def start(start):
+@app.route("/api/v1.0/<start>/<end>")
+def start(start=None, end=None):
     "Find the min temp, avg temp and max temp for a specifed start range"
-     # create engine to hawaii.sqlite
-    engine = create_engine("sqlite:///Resources/hawaii.sqlite")
-
-    # reflect an existing database into a new model
-    Base = automap_base()
-    # reflect the tables
-    Base.prepare(autoload_with=engine)
-
-    # View all of the classes that automap found
-    Base.classes.keys()
-
-    # Save references to each table
-    Measurement = Base.classes.measurement
-
-    # Create our session (link) from Python to the DB
-    session = Session(engine)
-
+   
     #min, avg and max temp for a start date
-    
-    for start in startdict:
-        gel = [func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs)]
-        temperature_list = session.query(*gel).filter(Measurement.date == start).first()
-        
-    temp_1 = list(np.ravel(temperature_list))
-    return jsonify(temp_1)
+    gel = [func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs)]
+
+    if not end:
+        # calculate TMIN, TAVG, TMAX for dates greater than start
+        results = session.query(*gel).\
+        filter(Measurement.date >= start).all()
+        # Unravel results into a 1D array and convert to a list
+        temps = list(np.ravel(results))
+        return jsonify(temps)
+
+
+    results = session.query(*gel).\
+    filter(Measurement.date >= start).\
+    filter(Measurement.date <= end).all()
+    # Unravel results into a 1D array and convert to a list
+    temps = list(np.ravel(results))
+    return jsonify(temps=temps)
 
 
 
